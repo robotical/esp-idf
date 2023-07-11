@@ -93,6 +93,7 @@ typedef struct {
     i2s_isr_handle_t i2s_isr_handle; /*!< I2S Interrupt handle*/
 #endif
     bool tx_desc_auto_clear;    /*!< I2S auto clear tx descriptor on underflow */
+    int tx_desc_auto_clear_val; /*!< I2S auto clear fill value */
     bool use_apll;              /*!< I2S use APLL clock */
     int fixed_mclk;             /*!< I2S fixed MLCK clock */
     i2s_mclk_multiple_t mclk_multiple; /*!< The multiple of I2S master clock(MCLK) to sample rate */
@@ -407,7 +408,7 @@ static bool IRAM_ATTR i2s_dma_tx_callback(gdma_channel_handle_t dma_chan, gdma_e
             }
         }
         if (p_i2s->tx_desc_auto_clear) {
-            memset((void *) (((lldesc_t *)finish_desc)->buf), 0, p_i2s->tx->buf_size);
+            memset((void *) (((lldesc_t *)finish_desc)->buf), p_i2s->tx_desc_auto_clear_val, p_i2s->tx->buf_size);
         }
         xQueueSendFromISR(p_i2s->tx->queue, &(((lldesc_t *)finish_desc)->buf), &tmp);
         need_awoke |= tmp;
@@ -472,7 +473,7 @@ static void IRAM_ATTR i2s_intr_handler_default(void *arg)
         // This will avoid any kind of noise that may get introduced due to transmission
         // of previous data from tx descriptor on I2S line.
         if (p_i2s->tx_desc_auto_clear) {
-            memset((void *) (((lldesc_t *)finish_desc)->buf), 0, p_i2s->tx->buf_size);
+            memset((void *) (((lldesc_t *)finish_desc)->buf), p_i2s->tx_desc_auto_clear_val, p_i2s->tx->buf_size);
         }
         xQueueSendFromISR(p_i2s->tx->queue, &(((lldesc_t *)finish_desc)->buf), &tmp);
         need_awoke |= tmp;
@@ -902,11 +903,11 @@ esp_err_t i2s_zero_dma_buffer(i2s_port_t i2s_num)
         /* Finish to write all tx data */
         int bytes_left = (p_i2s[i2s_num]->tx->buf_size - p_i2s[i2s_num]->tx->rw_pos) % 4;
         if (bytes_left) {
-            size_t zero_bytes = 0, bytes_written;
+            size_t zero_bytes = p_i2s[i2s_num]->tx_desc_auto_clear_val, bytes_written;
             i2s_write(i2s_num, (void *)&zero_bytes, bytes_left, &bytes_written, portMAX_DELAY);
         }
         for (int i = 0; i < p_i2s[i2s_num]->dma_buf_count; i++) {
-            memset(p_i2s[i2s_num]->tx->buf[i], 0, p_i2s[i2s_num]->tx->buf_size);
+            memset(p_i2s[i2s_num]->tx->buf[i], p_i2s[i2s_num]->tx_desc_auto_clear_val, p_i2s[i2s_num]->tx->buf_size);
         }
     }
     return ESP_OK;
@@ -1849,6 +1850,7 @@ static esp_err_t i2s_driver_init(i2s_port_t i2s_num, const i2s_config_t *i2s_con
     p_i2s[i2s_num]->fixed_mclk = i2s_config->fixed_mclk;
     p_i2s[i2s_num]->mclk_multiple = i2s_config->mclk_multiple;
     p_i2s[i2s_num]->tx_desc_auto_clear = i2s_config->tx_desc_auto_clear;
+    p_i2s[i2s_num]->tx_desc_auto_clear_val = i2s_config->tx_desc_auto_clear_val;
     p_i2s[i2s_num]->init_chan_fmt = i2s_config->channel_format;
 
     /* I2S HAL configuration assignment */

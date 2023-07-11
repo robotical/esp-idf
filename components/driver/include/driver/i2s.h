@@ -116,6 +116,7 @@ typedef struct {
 
     bool                    use_apll;                   /*!< I2S using APLL as main I2S clock, enable it to get accurate clock */
     bool                    tx_desc_auto_clear;         /*!< I2S auto clear tx descriptor if there is underflow condition (helps in avoiding noise in case of data unavailability) */
+    int                     tx_desc_auto_clear_val;     /*!< The value to fill the i2s buffer with if an underflow condition occurs and tx_desc_auto_clear is true */
     int                     fixed_mclk;                 /*!< I2S using fixed MCLK output. If use_apll = true and fixed_mclk > 0, then the clock output for i2s is fixed and equal to the fixed_mclk value. If fixed_mclk set, mclk_multiple won't take effect */
     i2s_mclk_multiple_t     mclk_multiple;              /*!< The multiple of I2S master clock(MCLK) to sample rate */
     i2s_bits_per_chan_t     bits_per_chan;              /*!< I2S total bits in one channel， only take effect when larger than 'bits_per_sample', default '0' means equal to 'bits_per_sample' */
